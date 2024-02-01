@@ -6,16 +6,40 @@
 /*   By: vincent <vincent@student.codam.nl>           +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2024/01/14 17:31:07 by vincent       #+#    #+#                 */
-/*   Updated: 2024/01/14 18:16:47 by vincent       ########   odam.nl         */
+/*   Updated: 2024/01/22 12:48:52 by vvan-der      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
+char	*ft_realloc(char *old, size_t size)
+{
+	char	*new;
+	size_t	i;
+
+	i = 0;
+	if (size == 0)
+		return (free(old), NULL);
+	new = malloc(size * sizeof(char));
+	if (new == NULL)
+		return (free(old), NULL);
+	if (old != NULL)
+	{
+		while (old[i] != '\0')
+		{
+			new[i] = old[i];
+			i++;
+		}
+	}
+	free(old);
+	new[i] = '\0';
+	return (new);
+}
+
 int	find_newl(char *str)
 {
 	int	i;
-	
+
 	i = 0;
 	while (str[i] != '\0')
 	{
@@ -31,6 +55,8 @@ size_t	get_length(char *str)
 	size_t	i;
 
 	i = 0;
+	if (str == NULL)
+		return (0);
 	while (str[i] != '\0' && str[i] != '\n')
 		i++;
 	if (str[i] == '\n')
@@ -56,16 +82,21 @@ void	copy_paste(char *dest, char *src)
 	dest[i] = '\0';
 }
 
-char	*combine_strings(char *str1, char *str2)
+char	*combine_strings(t_data *data, char *line, char *buffer)
 {
-	char	*str3;
 	size_t	i;
+	size_t	j;
 
-	i = get_length(str1);
-	str3 = malloc((i + get_length(str2) + 1) * sizeof(char));
-	if (str3 == NULL)
-		return (NULL);
-	copy_paste(str3, str1);
-	copy_paste(&str3[i], str2);
-	return (str3);
+	i = get_length(line);
+	j = get_length(buffer);
+	data->len += j;
+	if (data->len + 1 >= data->size)
+	{
+		data->size *= 2;
+		line = ft_realloc(line, data->size * sizeof(char));
+		if (line == NULL)
+			return (NULL);
+	}
+	copy_paste(&line[i], buffer);
+	return (line);
 }

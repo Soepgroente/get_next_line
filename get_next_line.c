@@ -6,35 +6,51 @@
 /*   By: vincent <vincent@student.codam.nl>           +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2024/01/14 17:28:35 by vincent       #+#    #+#                 */
-/*   Updated: 2024/01/14 18:20:11 by vincent       ########   odam.nl         */
+/*   Updated: 2024/01/31 17:50:37 by vvan-der      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
-char	*read_stuff(int fd, char *line, char *buffer, char *tmp)
+static void	manage_buffer(char *dest, char *src)
+{
+	size_t	i;
+
+	i = 0;
+	if (find_newl(dest) == NOT_FOUND)
+	{
+		dest[0] = '\0';
+		return ;
+	}
+	while (src[i] != '\0')
+	{
+		dest[i] = src[i];
+		i++;
+	}
+	dest[i] = '\0';
+}
+
+static char	*read_stuff(t_data *data, int fd, char *line, char *buffer)
 {
 	int		bytes_read;
 
-	bytes_read = 0;
-	if (buffer[0] != '\0')
-		line = combine_strings(buffer, "");
+	bytes_read = 1;
+	line = combine_strings(data, line, buffer);
 	if (line == NULL)
-		return (free(tmp), NULL);
-	while (find_newl(buffer) == NOT_FOUND && bytes_read == BUFFER_SIZE)	
+		return (NULL);
+	data->len = get_length(line);
+	while (find_newl(buffer) == NOT_FOUND && bytes_read != 0)
 	{
 		bytes_read = read(fd, buffer, BUFFER_SIZE);
 		if (bytes_read == -1)
 		{
 			buffer[0] = '\0';
-			free(line);
-			return (NULL);
+			return (free(line), NULL);
 		}
-		line = combine_strings(tmp, buffer);
+		buffer[bytes_read] = '\0';
+		line = combine_strings(data, line, buffer);
 		if (line == NULL)
-			return (free(tmp), NULL);
-		free(tmp);
-		tmp = line;		
+			return (NULL);
 	}
 	return (line);
 }
@@ -42,18 +58,20 @@ char	*read_stuff(int fd, char *line, char *buffer, char *tmp)
 char	*get_next_line(int fd)
 {
 	static char	buffer[BUFFER_SIZE + 1];
-	char		*line;
+	t_data		data;
 
 	if (fd < 0 || fd > 1024 || BUFFER_SIZE <= 0)
 		return (NULL);
-	line = malloc(1 * sizeof(char));
-	if (line == NULL)
+	data.size = BUFFER_SIZE + 1;
+	data.len = BUFFER_SIZE;
+	data.line = read_stuff(&data, fd, NULL, buffer);
+	if (data.line == NULL)
 		return (NULL);
-	line = read_stuff(fd, line, buffer, line);
-	if (line == NULL)
+	manage_buffer(buffer, &buffer[find_newl(buffer) + 1]);
+	data.line = ft_realloc(data.line, get_length(data.line) + 1);
+	if (data.line == NULL)
 		return (NULL);
-	copy_paste(buffer, &buffer[find_newl(buffer) + 1]);
-	if (*line == '\0')
-		return (free(line), NULL);
-	return (line);
+	if (*data.line == '\0')
+		return (free(data.line), NULL);
+	return (data.line);
 }

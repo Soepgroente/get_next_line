@@ -6,90 +6,83 @@
 /*   By: vincent <vincent@student.codam.nl>           +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2024/01/14 17:28:35 by vincent       #+#    #+#                 */
-/*   Updated: 2024/01/14 18:30:56 by vincent       ########   odam.nl         */
+/*   Updated: 2024/02/01 20:08:02 by vvan-der      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line_bonus.h"
 
-static void clean_up(char ***buffer)
+static void	free_and_null(char **var)
 {
-	int	i;
-
-	i = 0;
-	while (i < 1024)
-	{
-		free(*buffer[i]);
-		*buffer[i] = NULL;
-		i++;
-	}
-	free(*buffer);
-	*buffer = NULL;
+	free(*var);
+	*var = NULL;
 }
 
-static void	init_static(char ***buffer)
+static void	manage_buffer(char *dest, char *src)
 {
-	int		i;
-	char	**tmp;
+	size_t	i;
 
 	i = 0;
-	tmp = *buffer;
-	tmp = malloc(1024 * sizeof(char *));
-	if (tmp == NULL)
-		return (NULL);
-	while (i < 1024)
+	if (find_newl(dest) == NOT_FOUND)
 	{
-		tmp[i] = malloc((BUFFER_SIZE + 1) * sizeof(char));
-		if (tmp[i] == NULL)
-			return (clean_up(buffer), NULL);
+		dest[0] = '\0';
+		return ;
+	}
+	while (src[i] != '\0')
+	{
+		dest[i] = src[i];
 		i++;
 	}
+	dest[i] = '\0';
 }
 
-char	*read_stuff(int fd, char *line, char *buffer, char *tmp)
+static char	*read_stuff(t_data *data, int fd, char *line, char **buffer)
 {
 	int		bytes_read;
 
-	bytes_read = 0;
-	if (buffer[0] != '\0')
-		line = combine_strings(buffer, "");
-	if (line == NULL)
-		return (free(tmp), NULL);
-	while (find_newl(buffer) == NOT_FOUND && bytes_read == BUFFER_SIZE)	
+	bytes_read = 1;
+	if (*buffer == NULL)
 	{
-		bytes_read = read(fd, buffer, BUFFER_SIZE);
-		if (bytes_read == -1)
-		{
-			buffer[0] = '\0';
-			free(line);
+		*buffer = ft_realloc(*buffer, BUFFER_SIZE + 1);
+		if (*buffer == NULL)
 			return (NULL);
-		}
-		line = combine_strings(tmp, buffer);
+	}
+	line = combine_strings(data, line, *buffer);
+	if (line == NULL)
+		return (NULL);
+	data->len = get_length(line);
+	while (find_newl(*buffer) == NOT_FOUND && bytes_read != 0)
+	{
+		bytes_read = read(fd, *buffer, BUFFER_SIZE);
+		if (bytes_read == -1)
+			return (free(line), NULL);
+		(*buffer)[bytes_read] = '\0';
+		line = combine_strings(data, line, *buffer);
 		if (line == NULL)
-			return (free(tmp), NULL);
-		free(tmp);
-		tmp = line;		
+			return (NULL);
 	}
 	return (line);
 }
 
 char	*get_next_line(int fd)
 {
-	static char	**buffer = {NULL};
-	char		*line;
+	static char	*buffer[1024] = {NULL};
+	t_data		data;
 
-	if (fd < 0 || fd > 1024 || BUFFER_SIZE <= 0)
+	if (fd < 0 || fd >= 1024 || BUFFER_SIZE <= 0)
 		return (NULL);
-	if (buffer == NULL)
-		init_static(&buffer);
-	line = malloc(1 * sizeof(char));
-	if (line == NULL)
+	data.size = BUFFER_SIZE + 1;
+	data.len = BUFFER_SIZE;
+	data.line = read_stuff(&data, fd, NULL, &buffer[fd]);
+	if (data.line == NULL)
+		return (free_and_null(&buffer[fd]), NULL);
+	manage_buffer(buffer[fd], &(buffer[fd][find_newl(buffer[fd]) + 1]));
+	data.line = ft_realloc(data.line, get_length(data.line) + 1);
+	if (data.line == NULL || *data.line == '\0')
+	{
+		free(data.line);
+		free_and_null(&buffer[fd]);
 		return (NULL);
-	line = read_stuff(fd, line, buffer[fd], line);
-	if (line == NULL)
-		return (NULL);
-	copy_paste(buffer[fd], &buffer[fd][find_newl(buffer) + 1]);
-	if (*line == '\0')
-		return (free(line), NULL);
-	return (line);
+	}
+	return (data.line);
 }
